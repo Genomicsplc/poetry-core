@@ -252,6 +252,12 @@ class WheelBuilder(Builder):
         return "{}-{}.dist-info".format(escaped_name, escaped_version)
 
     def get_tags(self) -> Iterator[str]:
+        env = os.environ
+        pythonpath = env.get("PYTHONPATH", "").strip()
+        if pythonpath == "":
+            env["PYTHONPATH"] = __vendor_site__
+        else:
+            env["PYTHONPATH"] = os.pathsep.join([__vendor_site__, pythonpath])
         try:
             tags = subprocess.check_output(
                 [
@@ -263,15 +269,17 @@ for tag in sys_tags():
   print(tag)
                     '''
                 ],
-                    stderr=subprocess.STDOUT,
+                env=env,
+                stderr=subprocess.STDOUT,
             ).decode('utf-8').strip().splitlines()
-            return tags
         except subprocess.CalledProcessError as cpe:
-            output = cpe.output.decode('utf-8').strip()
-            if re.search(r"^ModuleNotFoundError:.*['\"]packaging[\\]?['\"]", output, re.MULTILINE) is not None:
-                raise RuntimeError(f'When using a build script to build a binary wheel, the python interpreter building the wheel requires the `packaging` module to determine the correct binary wheel tag, but it was not found.\nPlease add `packaging = ">= 20.0"` to dev-dependencies, run `poetry update` to install it, and try to build again.')
-            else:
-                raise cpe
+            raise RuntimeError(
+                "get_tags failed to get sys_tags for python interpreter"
+                f" '{self.executable.as_posix()}' using PYTHONPATH='{pythonpath}'"
+                " to supply packaging.tags package: script exited"
+                f" {cpe.returncode} with output '{cpe.output.decode('utf-8').strip()}'"
+            )
+        return tags
 
     @property
     def tag(self):  # type: () -> str
