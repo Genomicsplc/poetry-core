@@ -21,6 +21,7 @@ from typing import Optional
 from typing import TextIO
 from typing import Union
 
+from poetry.core import __vendor_site__
 from poetry.core import __version__
 from poetry.core.semver import parse_constraint
 from poetry.core.utils._compat import PY2
